@@ -12,7 +12,8 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         if len(x.shape) == 2:
-            x = x.unsqueeze(1)
+            x = x.unsqueeze(0)
+        x = x.permute(0,2,1)
         out, _ = self.lstm(x)
         out = self.fc(out[:, -1, :])
         return out

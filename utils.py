@@ -72,7 +72,7 @@ def create_sequences(data, window_size, step, forecast_horizon):
     for i in range(0, len(data) - window_size - forecast_horizon + 1, step):
         x.append(data[i:i + window_size, :])  # 输入特征，去除最后一列
         y.append(data[i + window_size:i + window_size + forecast_horizon, -1])  # 输出目标，后96个时间步的负荷
-    print('xxxx')
+    
     return torch.stack(x), torch.stack(y)  # 直接返回 PyTorch 张量
 
 
