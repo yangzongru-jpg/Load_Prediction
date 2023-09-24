@@ -133,7 +133,7 @@ def main():
         origin_data = origin_data_dict[opts.dataset]
         save_picture_path = "/home/yzr/msdis/Load_Prediction/pictures"
         predict_data_draw(data_matrix = origin_data,predict_data_matrix = pred_result_value,save_path = save_picture_path,name = 'SD')
-        print("Draw GD predict picture is finish")
+        print("Draw SD predict picture is finish")
     elif opts.dataset == 'GD':
         for keys,values in data_loaders_dict.items():
             train_loader = data_loaders_dict[keys]['train']
