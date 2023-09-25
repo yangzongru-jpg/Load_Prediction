@@ -99,13 +99,14 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch):
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device):
+def evaluate(model, data_loader, device,scaler):
     model.eval()
     data_loader = tqdm(data_loader, file=sys.stdout)
     pred_result=[]
     for step, data in enumerate(data_loader):
         inputs,labels = data[0].to(device),data[1].to(device)
         pred = model(inputs)
+        pred = scaler.inverse_transform(pred.cpu().numpy())#返归一化
         pred_result.append(pred)
         metric_dict = metric(pred.to(device), labels)
 

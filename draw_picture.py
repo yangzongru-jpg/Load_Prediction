@@ -60,7 +60,7 @@ def predict_data_draw(data_matrix,predict_data_matrix,save_path,name):
     x_pred_data = range(len(data)+1-len(predict_data),len(data)+1)
 
     # 创建图形
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(30, 6))
 
     # 绘制真实值和预测值的曲线
     plt.plot(x_gt_data, data, label='True', linestyle='-', marker='o', markersize=5, color='blue')

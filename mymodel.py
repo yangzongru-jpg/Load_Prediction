@@ -13,17 +13,17 @@ class LSTMModel(nn.Module):
     def forward(self, x):
         if len(x.shape) == 2:
             x = x.unsqueeze(0)
-        x = x.permute(0,2,1)
+        x = x.permute(0,1,2)
         out, _ = self.lstm(x)
         out = self.fc(out[:, -1, :])
         return out
 
 class GRUModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size):
         super(GRUModel, self).__init__()
         self.hidden_size = hidden_size
         self.gru = nn.GRU(input_size, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.fc = nn.Linear(hidden_size, 96)
 
     def forward(self, x):
         out, _ = self.gru(x)
@@ -31,11 +31,11 @@ class GRUModel(nn.Module):
         return out
     
 class RNNModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size):
         super(RNNModel, self).__init__()
         self.hidden_size = hidden_size
         self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.fc = nn.Linear(hidden_siz,96)
 
     def forward(self, x):
         out, _ = self.rnn(x)

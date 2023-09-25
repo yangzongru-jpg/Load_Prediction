@@ -11,6 +11,7 @@ from mymodel import LSTMModel,GRUModel,RNNModel
 from torch.utils.data import DataLoader
 import os
 import torch.optim as optim
+from sklearn.preprocessing import MinMaxScaler
 import argparse
 from draw_picture import origin_data_draw,predict_data_draw
 import sys
@@ -21,7 +22,7 @@ del sys
 def get_argparser():
     parser = argparse.ArgumentParser(description='Times series under extrem condition')
     #设置gpu环境
-    parser.add_argument('--gpu', default=0, type=int, help='GPU id to use.')
+    parser.add_argument('--gpu', default=1, type=int, help='GPU id to use.')
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
     #Dataset options
     parser.add_argument('--dataset', type=str, default='SD',
@@ -31,8 +32,8 @@ def get_argparser():
     parser.add_argument('--input_size', default=4, type=int, help='LSTM input size')
     parser.add_argument('--hidden_size', default=256, type=int, help='LSTM hidden size')
     parser.add_argument('--num_layers', default=2, type=int, help='LSTM num layers')
-    parser.add_argument('--epochs', default=1, type=int, metavar='N', help='number of total epochs to run')
-    parser.add_argument('--batch_size', default=2048, type=int, help='ts batch size')
+    parser.add_argument('--epochs', default=10, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--batch_size', default=512, type=int, help='ts batch size')
     parser.add_argument('--lr', default=0.1, type=float, help='initial learning rate for KD')
     parser.add_argument('--window_size', default=96, type=int, help='ts window size')
     parser.add_argument('--forecast_horizon', default=96, type=int, help='predict_length')
@@ -52,14 +53,19 @@ def get_dataset(opts):
         excel_file_path_load = "/home/yzr/msdis/data/Load_Data/全网负荷20170101-20230716.xlsx"
         # 使用pandas读取Excel文件的第2、3和4列
         df_weather = pd.read_excel(excel_file_path_weather, usecols=[1, 2, 3])
-        #df_weather = df_weather.values[:43824,:] #2017-2021.12.31-->对应的2021123123:00的数据
         df_weather = torch.tensor(expand_hourly_data_to_15mins(df_weather.values[:43824,:],samples_per_hour=4),dtype=torch.float32) #扩展15分钟的采样,output shape (175296, 3)
         df_load = pd.read_excel(excel_file_path_load,usecols = [1,2])
         df_load_family = torch.tensor(df_load.values[:175296,0],dtype=torch.float32)#(175296,)
         all_matrix = torch.cat((df_weather, df_load_family.reshape(-1, 1)), dim=1)
         origin_data_dict['SD'] = all_matrix[:,-1]
         data_tensor = all_matrix
+        # 归一化数据
+        scaler = MinMaxScaler()
+        #scaler_x = MinMaxScaler()
+        #scaler_y = MinMaxScaler()
+        data_tensor = torch.tensor(scaler.fit_transform(all_matrix),dtype= torch.float32)
         x_train,y_train,x_test,y_test = create_sliding_windows_for_day(data_tensor,window_size=opts.window_size, forecast_horizon=opts.forecast_horizon,step = opts.step)
+        #x_train,y_train,x_test,y_test = scaler_x.fit_transform(x_train), scaler_y.fit_transform(y_train), scaler_x.transform(x_test), scaler_y.transform(y_test)
         train_dataset = torch.utils.data.TensorDataset(x_train, y_train)
         test_dataset = torch.utils.data.TensorDataset(x_test, y_test)
         train_loader = DataLoader(train_dataset, batch_size=opts.batch_size, shuffle=True,num_workers=8)
@@ -100,9 +106,14 @@ def get_dataset(opts):
 def main():
     opts = get_argparser().parse_args() 
     device = torch.device(opts.device if torch.cuda.is_available() else "cpu")
+    ##################################################################################################################
+    #设置GPU和tensorboard
+    gpu_id = opts.gpu
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    ##################################################################################################################
     data_loaders_dict,origin_data_dict = get_dataset(opts) #data_loaders_dict是这样调用的 data_loaders_dict['JM']['train']
     if opts.model == 'lstm':
-        model = LSTMModel(input_size=96, hidden_size=256, num_layers=4).to(device)
+        model = LSTMModel(input_size=opts.input_size, hidden_size=256, num_layers=4).to(device)
     elif opts.model == 'gru':
         model = GRUModel(input_size=96, hidden_size=256, num_layers=2).to(device)
     elif opts.model == 'rnn':
@@ -124,9 +135,10 @@ def main():
             scheduler.step()
 
             # test
-            pred_result,metric_dict = evaluate(model=model,
+        pred_result,metric_dict = evaluate(model=model,
                                         data_loader=test_loader,
-                                        device=device)
+                                        device=device,scaler =scaler_y
+                                            )
         print("SD train and test process is finish")
         #concat_tensor = pred_result[0].view(-1)
         pred_result_value = pred_result[0].view(-1)
@@ -149,9 +161,10 @@ def main():
                 scheduler.step()
 
                 # test
-                pred_result,metric_dict = evaluate(model=model,
+            pred_result,metric_dict = evaluate(model=model,
                                             data_loader=test_loader,
-                                            device=device)
+                                            device=device,
+                                            scaler=scaler)
             print(f"{keys} train and test process is finish")
             #concat_tensor = pred_result[0].view(-1)
             pred_result_value = pred_result[0].view(-1)
